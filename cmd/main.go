@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/sandreev87/golang-rest-api/internal/app"
 
 func main() {
-	fmt.Println("hello world!")
+	app.Run()
 }

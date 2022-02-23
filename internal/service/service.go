@@ -10,6 +10,7 @@ type Authorization interface {
 	SignIn(username, password string) (map[string]interface{}, error)
 	GenerateTokens(user models.User) (map[string]interface{}, error)
 	ParseToken(token string) (int, error)
+	UpdateRefreshToken(token string) (map[string]interface{}, error)
 }
 
 type Service struct {
@@ -18,6 +19,6 @@ type Service struct {
 
 func NewService(repos *repository.Repository) *Service {
 	return &Service{
-		Authorization: NewAuthService(repos.Authorization),
+		Authorization: NewAuthService(repos.Authorization, repos.Cache),
 	}
 }

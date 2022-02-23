@@ -3,6 +3,8 @@ module github.com/sandreev87/golang-rest-api
 go 1.17
 
 require (
+	github.com/cespare/xxhash v1.1.0 // indirect
+	github.com/coocood/freecache v1.2.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect

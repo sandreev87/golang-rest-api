@@ -47,6 +47,23 @@ func (h *Handler) signIn(c *gin.Context) {
 	c.JSON(http.StatusOK, tokens)
 }
 
-func (h *Handler) updateRefreshToken(_ *gin.Context) {
+type updateRefreshTokenInput struct {
+	Token string `json:"token" binding:"required"`
+}
 
+func (h *Handler) updateRefreshToken(c *gin.Context) {
+	var input updateRefreshTokenInput
+
+	if err := c.BindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	tokens, err := h.services.Authorization.UpdateRefreshToken(input.Token)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, tokens)
 }

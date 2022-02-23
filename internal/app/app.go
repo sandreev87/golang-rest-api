@@ -1,17 +1,20 @@
 package app
 
 import (
+	"github.com/coocood/freecache"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	server "github.com/sandreev87/golang-rest-api"
 	"github.com/sandreev87/golang-rest-api/internal/handler"
 	"github.com/sandreev87/golang-rest-api/internal/repository"
+	"github.com/sandreev87/golang-rest-api/internal/server"
 	"github.com/sandreev87/golang-rest-api/internal/service"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
 )
+
+const CacheSize = 104857600 // 100MB
 
 func Run() {
 	if err := initConfig(); err != nil {
@@ -22,7 +25,9 @@ func Run() {
 		logrus.Fatalf("error loading env variables: %s", err.Error())
 	}
 
-	repos := repository.NewRepository(initDbConnection())
+	refreshTokenCache := freecache.NewCache(CacheSize)
+
+	repos := repository.NewRepository(initDbConnection(), refreshTokenCache)
 	services := service.NewService(repos)
 	handlers := handler.NewHandler(services)
 	srv := new(server.Server)

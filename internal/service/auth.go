@@ -2,9 +2,11 @@ package service
 
 import (
 	"crypto/sha1"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 	"github.com/sandreev87/golang-rest-api/internal/models"
 	"github.com/sandreev87/golang-rest-api/internal/repository"
 	"time"
@@ -22,11 +24,12 @@ type tokenClaims struct {
 }
 
 type AuthService struct {
-	repo repository.Authorization
+	repo  repository.Authorization
+	cache repository.Cache
 }
 
-func NewAuthService(repo repository.Authorization) *AuthService {
-	return &AuthService{repo: repo}
+func NewAuthService(repo repository.Authorization, cache repository.Cache) *AuthService {
+	return &AuthService{repo: repo, cache: cache}
 }
 
 func (s *AuthService) CreateUser(user models.User) (int, error) {
@@ -36,6 +39,22 @@ func (s *AuthService) CreateUser(user models.User) (int, error) {
 
 func (s *AuthService) SignIn(username, password string) (map[string]interface{}, error) {
 	user, err := s.repo.GetUser(username, generatePasswordHash(password))
+	if err != nil {
+		return nil, err
+	}
+
+	return s.GenerateTokens(user)
+}
+
+func (s *AuthService) UpdateRefreshToken(refreshToken string) (map[string]interface{}, error) {
+	defer s.cache.Del([]byte(refreshToken))
+
+	userBytes, err := s.cache.Get([]byte(refreshToken))
+	if err != nil {
+		return nil, err
+	}
+	var user models.User
+	err = json.Unmarshal(userBytes, &user)
 	if err != nil {
 		return nil, err
 	}
@@ -53,16 +72,24 @@ func (s *AuthService) GenerateTokens(user models.User) (map[string]interface{}, 
 	})
 
 	accessToken, _ := token.SignedString([]byte(signingKey))
+	newRefreshToken := uuid.New()
+	userBytes, _ := json.Marshal(user)
+
+	err := s.cache.Set([]byte(newRefreshToken.String()), userBytes, 0)
+	if err != nil {
+		return nil, err
+	}
 
 	return map[string]interface{}{
-		"token": accessToken,
+		"token":         accessToken,
+		"refresh_token": newRefreshToken.String(),
 	}, nil
 }
 
 func (s *AuthService) ParseToken(accessToken string) (int, error) {
 	token, err := jwt.ParseWithClaims(accessToken, &tokenClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("invalid signing method")
+			return nil, errors.New("Invalid signing method")
 		}
 
 		return []byte(signingKey), nil
@@ -72,7 +99,7 @@ func (s *AuthService) ParseToken(accessToken string) (int, error) {
 	}
 	claims, ok := token.Claims.(*tokenClaims)
 	if !ok {
-		return 0, errors.New("token claims are not of type *tokenClaims")
+		return 0, errors.New("Token claims are not of type *tokenClaims")
 	}
 
 	return claims.UserId, nil
